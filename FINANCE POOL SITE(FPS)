@@ -1,0 +1,86 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { initializeApp } from "firebase/app";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const products = [
+  { id: 1, name: "TECNO", price: 700, dailyEarnings: 200, logo: "/images/tecno.png", referralBonus: 50 },
+  { id: 2, name: "OPPO", price: 1000, dailyEarnings: 250, logo: "/images/oppo.png", referralBonus: 75 },
+  { id: 3, name: "SAMSUNG", price: 1500, dailyEarnings: 300, logo: "/images/samsung.png", referralBonus: 100 },
+  { id: 4, name: "REAL ME", price: 2000, dailyEarnings: 400, logo: "/images/realme.png", referralBonus: 125 },
+  { id: 5, name: "ALCATEL", price: 3000, dailyEarnings: 500, logo: "/images/alcatel.png", referralBonus: 150 }
+];
+
+export default function FinancePool() {
+  const [balance, setBalance] = useState(1000);
+  const [ownedProducts, setOwnedProducts] = useState([]);
+  const [user, setUser] = useState(null);
+  const [referralLink, setReferralLink] = useState("");
+
+  useEffect(() => {
+    onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        setReferralLink(`${window.location.origin}/signup?ref=${currentUser.uid}`);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const dailyIncome = ownedProducts.reduce((acc, prod) => acc + prod.dailyEarnings, 0);
+      setBalance((prevBalance) => prevBalance + dailyIncome);
+    }, 86400000);
+    return () => clearInterval(interval);
+  }, [ownedProducts]);
+
+  const handlePurchase = (product) => {
+    if (balance < product.price) return alert("Insufficient balance");
+    setBalance(balance - product.price);
+    setOwnedProducts([...ownedProducts, product]);
+  };
+
+  return (
+    <div className="p-6 max-w-lg mx-auto">
+      <h1 className="text-xl font-bold mb-4">Finance Pool Dashboard</h1>
+      <Card>
+        <CardContent className="p-4">
+          <p className="text-lg font-semibold">Balance: ${balance.toFixed(2)}</p>
+          <p className="text-md font-medium text-green-600">Deposit via Paybill: 512100, Account No: 1131268</p>
+          {user && (
+            <div className="my-4">
+              <h2 className="text-lg font-bold">Referral Program</h2>
+              <p>Invite your friends and earn referral bonuses for each product they buy.</p>
+              <Input readOnly value={referralLink} className="my-2" />
+              <Button onClick={() => navigator.clipboard.writeText(referralLink)}>Copy Referral Link</Button>
+            </div>
+          )}
+          <h2 className="text-lg font-bold mt-4">Products</h2>
+          {products.map((product) => (
+            <div key={product.id} className="flex justify-between items-center my-2">
+              <img src={product.logo} alt={product.name} className="w-12 h-12" />
+              <span>{product.name} - ${product.price} (Daily Earnings: ${product.dailyEarnings})</span>
+              <p className="text-sm text-blue-500">Referral Bonus: ${product.referralBonus}</p>
+              <Button onClick={() => handlePurchase(product)}>Buy</Button>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
